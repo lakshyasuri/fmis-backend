@@ -34,7 +34,14 @@ app.post('/new/signup',(request,response)=>{
 });
 
 app.get('/new/signup',(request,response)=>{
-    signup.find().populate('field').then((result)=>{
+    signup.find().populate({
+        path: 'field machines', 
+        select: '_id name area weather',
+        populate: {
+            path: 'weather', 
+            select: '_id temp humidity general'
+        }
+    }).then((result)=>{
         if(result.length==0)
         {
             return response.status(404).send('no record found');
@@ -47,15 +54,20 @@ app.get('/new/signup',(request,response)=>{
 
 app.get('/new/signup/:id',(request,response)=>{
     var id = request.params.id;
-    if(id.toString().length<10 || isNaN(id))
+    if(!ObjectID.isValid(id))
     {
-        return response.status(400).send('enter a valid number');
+        return response.status(400).send('ID not valid');
     }
 
-    signup.find({
-        number: id
-    }).populate('field').then((result)=>{
-        if(result.length==0)
+    signup.findById(id).populate({
+        path: 'field', 
+        select: '_id name area weather', 
+        populate: {
+            path: 'weather', 
+            select: '_id temp humidity general'
+        }
+    }).then((result)=>{
+        if(!result)
         {
             return response.status(404).send('no record found');
         }
@@ -67,14 +79,12 @@ app.get('/new/signup/:id',(request,response)=>{
 
 app.delete('/new/signup/:id',(request,response)=>{
     var id = request.params.id;
-    if(id.toString().length<10 || isNaN(id))
+    if(!ObjectID.isValid(id))
     {
-        return response.status(400).send('enter a valid number');
+        return response.status(400).send('ID not valid');
     }
 
-    signup.findOneAndRemove({
-        number: id
-    }).then((result)=>{
+    signup.findByIdAndRemove(id).then((result)=>{
         if(!result)
         {
             return response.status(404).send('no record found');
@@ -90,14 +100,13 @@ app.patch('/new/signup/:id',(request,response)=>{
     var id = request.params.id;
     var body = _.pick(request.body,['name','number']);
 
-    if(id.toString().length<10 || isNaN(id))
+    if(!ObjectID.isValid(id))
     {
-        return response.status(400).send('enter a valid number');
+        return response.status(400).send('ID not valid');
     }
 
-    signup.findOneAndUpdate({
-        number: id
-    },{$set:body},{new: true}).populate('field').then((result)=>{
+    signup.findByIdAndUpdate(id,
+        {$set:body},{new: true}).populate('field').then((result)=>{
         if(!result)
         {
             return response.status(404).send('no record found');
@@ -116,14 +125,12 @@ app.post('/new/field/:id',(request,response)=>{
     var flag = 0;
     var field_id;
 
-    signup.find({
-        number: id
-    }).then((result)=>{
-        if(result.length==0)
+    signup.findById(id).then((result)=>{
+        if(!result)
         {
             return response.status(404).send('no record found, hence cant post');
         }
-        reference = result[0]._id;
+        reference = result._id;
         var Field = new field({
             name: request.body.name, 
             latitude: request.body.latitude, 
@@ -134,7 +141,6 @@ app.post('/new/field/:id',(request,response)=>{
         
         Field.save().then((result)=>{
             response.send(result);
-            console.log(result._id);
             field_id = result._id;
             signup.findByIdAndUpdate(reference,{
                 field: field_id
@@ -158,7 +164,8 @@ app.post('/new/field/:id',(request,response)=>{
 
 app.get('/new/field',(request,response)=>{
     field.find().populate({
-        path: 'owner weather'
+        path: 'owner weather', 
+        select: 'name number temp min max humidity general'
     }).then((result)=>{
         if(result.length==0)
         {
@@ -173,12 +180,25 @@ app.get('/new/field',(request,response)=>{
 app.get('/new/field/:id',(request,response)=>{
     var id = request.params.id;
     var field_id;
-    if(id.toString().length<10 || isNaN(id))
+    if(!ObjectID.isValid(id))
     {
-        return response.status(400).send('enter a valid number');
+        return response.status(400).send('ID not valid')
     }
 
-    signup.find({number: id}).then((result)=>{
+    field.findById(id).populate({
+        path: 'owner weather', 
+        select: 'name number temp min max humidity general'
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+
+    /* signup.find({number: id}).then((result)=>{
         if(result.length==0)
         {
             return response.status(404).send("no record found (signup)");
@@ -200,20 +220,19 @@ app.get('/new/field/:id',(request,response)=>{
         });
     },(e)=>{
         response.status(400).send(e);
-    });
+    }); */
 });
 
 app.patch('/new/field/:id',(request,response)=>{
     var id = request.params.id;
     var body = _.pick(request.body,['name','latitude','longitude','area']);
 
-    var field_id;
-    if(id.toString().length<10 || isNaN(id))
+    if(!ObjectID.isValid(id))
     {
-        return response.status(400).send('enter a valid number');
+        return response.status(400).send('ID not valid')
     }
 
-    signup.find({
+    /* signup.find({
         number: id
     }).then((result)=>{
         if(result.length==0)
@@ -221,10 +240,13 @@ app.patch('/new/field/:id',(request,response)=>{
             return response.status(404).send('no record found');
         }
 
-        field_id = result[0].field;
+        field_id = result[0].field; */
         
 
-        field.findByIdAndUpdate(field_id,{$set: body},{new: true}).populate('owner').then((result)=>{
+        field.findByIdAndUpdate(id,{$set: body},{new: true}).populate({
+            path: 'owner weather', 
+        select: 'name number temp min max humidity general'
+        }).then((result)=>{
             if(result.length==0)
             {
                 return response.status(404).send('no record found');
@@ -234,30 +256,30 @@ app.patch('/new/field/:id',(request,response)=>{
         },(e)=>{
             response.status(400).send(e);
         });
-    },(e)=>{
+    }/* ,(e)=>{
         response.status(400).send(e);
-    });
+    
+    // });
 
     
-});
+} */);
 
 app.delete('/new/field/:id',(request,response)=>{
     var id = request.params.id;
-    var field_id;
 
-    if(id.toString().length<10 || isNaN(id))
+    if(!ObjectID.isValid(id))
     {
-        return response.status(400).send('enter a valid number');
+        return response.status(400).send('ID not valid')
     }
 
-    signup.find({number:id}).then((result)=>{
+    /* signup.find({number:id}).then((result)=>{
         if(result.length==0)
         {
             return response.status(404).send('no record found (signup)');
         }
-        field_id = result[0].field;
+        field_id = result[0].field; */
 
-        field.findByIdAndRemove(field_id).then((result)=>{
+        field.findByIdAndRemove(id).then((result)=>{
             if(!result)
             {
                 return response.status(404).send('no record found');
@@ -266,10 +288,10 @@ app.delete('/new/field/:id',(request,response)=>{
         },(e)=>{
             response.status(400).send(e)
         });
-    },(e)=>{
+    }/* ,(e)=>{
         response.status(400).send(e);
-    });
-});
+    // });
+} */);
 
 //----------------------WEATHER-------------------------------------
 
@@ -323,7 +345,8 @@ app.post('/new/weather/:id',(request,response)=>{
 
 app.get('/new/weather',(request,response)=>{
     weather.find().populate({
-        path: 'field farmer'
+        path: 'field farmer',
+        select: 'name area name number'
     }).then((result)=>{
         if(result.length==0)
         {
@@ -343,7 +366,10 @@ app.get('/new/weather/:id',(request,response)=>{
         return repsonse.status(400).send('Id entered not valid');
     }
 
-    weather.findById(id).populate({path: 'field farmer'}).then((result)=>{
+    weather.findById(id).populate({
+        path: 'field farmer',
+        select: 'name area name number'
+    }).then((result)=>{
         if(!result)
         {
             return response.status(404).send('no record found');
@@ -381,7 +407,8 @@ app.patch('/new/weather/:id',(request,response)=>{
     }
 
     weather.findByIdAndUpdate(id,{$set: body},{new: true}).populate({
-        path: 'field farmer'
+        path: 'field farmer',
+        select: 'name area name number'
     }).then((result)=>{
         if(!result)
         {
@@ -397,7 +424,7 @@ app.patch('/new/weather/:id',(request,response)=>{
 
 app.post('/new/machine/:id',(request,response)=>{
     var farmer_id = request.params.id;
-    if(!ObjectID.isValid(id))
+    if(!ObjectID.isValid(farmer_id))
     {
         return response.status(400).send('ID not valid');
     }
@@ -409,12 +436,132 @@ app.post('/new/machine/:id',(request,response)=>{
         model: request.body.model, 
         year: request.body.year, 
         quantity: request.body.quantity, 
-        status: request.body.status
+        status: request.body.status, 
+        farmer: farmer_id
     });
+
+    Machine.save().then((result)=>{
+        response.send(result);
+
+        signup.findByIdAndUpdate(farmer_id,{
+            $push:{machines: result._id}
+        },{new: true}).then((result)=>{
+            if(!result)
+            {
+                return response.status(404).send('no record found (signup)');
+            }
+    
+        },(e)=>{
+            response.status(400).send(e);
+        });
+    },(e)=>{
+        response.status(400).send(e)
+    });
+
+
 
 });
 
-//ajdjajsdsakjdhlasdlkasldkjasjd
+app.get('/new/machine',(request,response)=>{
+    machine.find().populate({
+        path: 'farmer', 
+        select: 'name number', 
+        populate: {
+            path: 'field', 
+            select: 'name area'
+        }
+    }).then((result)=>{
+        if(result.length==0)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/machine/:id',(request,response)=>{
+    var id = request.params.id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    machine.findById(id).populate({
+        path: 'farmer', 
+        select: 'name number', 
+        populate: {
+            path: 'field', 
+            select: 'name area'
+        }
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.delete('/new/machine/:id',(request,response)=>{
+    var id = request.params.id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    machine.findByIdAndRemove(id).populate({
+        path: 'farmer', 
+        select: 'name number', 
+        populate: {
+            path: 'field', 
+            select: 'name area'
+        }
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.patch('/new/machine/:id',(request,response)=>{
+    var id = request.params.id; 
+    var body = _.pick(request.body,['name','imageID','manufacturer','model','year','quantity','status']);
+
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    machine.findByIdAndUpdate(id,{$set: body},{new: true}).populate({
+        path: 'farmer', 
+        select: 'name number', 
+        populate: {
+            path: 'field', 
+            select: 'name area'
+        }
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+//------------------------
+
+
+
 
 
 
