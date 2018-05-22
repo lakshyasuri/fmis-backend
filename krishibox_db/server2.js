@@ -8,6 +8,7 @@ const {signup} = require('./models2/signup');
 const {field} = require('./models2/field');
 const {weather} = require('./models2/weather');
 const {machine} = require('./models2/machine');
+const {inventory} = require('./models2/inventory');
 
 const {ObjectID} = require('mongodb');
 
@@ -558,7 +559,151 @@ app.patch('/new/machine/:id',(request,response)=>{
     });
 });
 
-//------------------------
+//----------------------------INVENTORY-----------------------------
+
+app.post('/new/inventory/:id',(request,response)=>{
+    var farmer_id = request.params.id; 
+    if(!ObjectID.isValid(farmer_id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    var body = request.body;
+    var Inventory = new inventory({
+        name: body.name, 
+        type: body.type, 
+        quantity: body.quantity, 
+        unit: body.unit, 
+        manufacturer: body.manufacturer, 
+        invoice: body.invoice, 
+        purchase_date: new Date(+body.purchase_date),
+        farmer: farmer_id
+    });
+
+    Inventory.save().then((result)=>{
+        response.send(result);
+
+        signup.findByIdAndUpdate(farmer_id,{inventory: result._id},{
+            new: true
+        }).then((result)=>{
+            if(!result)
+            {
+                return response.status(404).send('no record found (signup)');
+            }
+            console.log(result);
+        },(e)=>{
+            response.status(400).send(e);
+        });
+
+    },(e)=>{
+        response.status(400).send(e);
+    });
+
+
+});
+
+app.get('/new/inventory',(request,response)=>{
+    inventory.find().populate({
+        path: 'farmer', 
+        select: 'name number field', 
+        populate: {
+            path: 'field', 
+            select: 'name area weather'
+        }, 
+        populate: {
+            path: 'weather',
+            select: 'temp humidty general'
+        }
+    }).then((result)=>{
+        if(result.length==0)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/inventory/:id',(request,response)=>{
+    var id = request.params.id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    inventory.findById(id).populate({
+        path: 'farmer', 
+        select: 'name number field', 
+        populate: {
+            path: 'field', 
+            select: 'name area weather'
+        }, 
+        populate: {
+            path: 'weather',
+            select: 'temp humidty general'
+        }
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.delete('/new/inventory/:id',(request,response)=>{
+    var id = request.params.id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    inventory.findByIdAndRemove(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.patch('/new/inventory/:id',(request,response)=>{
+    var id = request.params.id;
+    var body = _.pick(request.body,['name','type', 'quantity','unit','manufacturer','invoice','purchase_date','farmer']);
+
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    inventory.findByIdAndUpdate(id,{$set: body},{new: true}).populate({
+        path: 'farmer', 
+        select: 'name number field', 
+        populate: {
+            path: 'field', 
+            select: 'name area weather'
+        }, 
+        populate: {
+            path: 'weather',
+            select: 'temp humidty general'
+        }
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+//------------------------------------------------------------------
 
 
 

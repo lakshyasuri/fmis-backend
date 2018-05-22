@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const field = require('./field');
 const machine = require('./machine');
+const inventory = require('./inventory');
 
 const  signupSchema = new mongoose.Schema({
     name: {
@@ -25,7 +26,12 @@ const  signupSchema = new mongoose.Schema({
             ref: 'machine', 
             default: null
         }
-    ]
+    ], 
+    inventory: {
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'inventory', 
+        default: null,
+    }
 
 });
 
