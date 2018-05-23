@@ -27,11 +27,12 @@ const  signupSchema = new mongoose.Schema({
             default: null
         }
     ], 
-    inventory: {
+    inventory: [ 
+        {
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'inventory', 
         default: null,
-    }
+    } ]
 
 });
 

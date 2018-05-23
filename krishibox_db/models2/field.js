@@ -25,11 +25,11 @@ const fieldSchema = new mongoose.Schema({
         ref: 'signup',
         unique: true
     },
-    weather: {
+    weather: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'weather',
         default: null
-    }
+    }]
 });
 const field = mongoose.model('field',fieldSchema);
 

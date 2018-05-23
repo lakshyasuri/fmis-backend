@@ -36,8 +36,8 @@ app.post('/new/signup',(request,response)=>{
 
 app.get('/new/signup',(request,response)=>{
     signup.find().populate({
-        path: 'field machines', 
-        select: '_id name area weather',
+        path: 'field machines inventory', 
+        select: '_id name area weather name manufacturer model year quantity status name type quantity unit',
         populate: {
             path: 'weather', 
             select: '_id temp humidity general'
@@ -61,8 +61,8 @@ app.get('/new/signup/:id',(request,response)=>{
     }
 
     signup.findById(id).populate({
-        path: 'field', 
-        select: '_id name area weather', 
+        path: 'field machines inventort', 
+        select: '_id name area weather name manufacturer model year quantity status name type quantity unit', 
         populate: {
             path: 'weather', 
             select: '_id temp humidity general'
@@ -325,8 +325,8 @@ app.post('/new/weather/:id',(request,response)=>{
 
         Weather.save().then((result)=>{
             response.send(result);
-            field.findByIdAndUpdate(field_id,{
-                weather: result._id
+            field.findByIdAndUpdate(field_id,{$push:{
+                weather: result._id}
             },{new: true}).populate({
                 path: 'owner weather'
             }).then((result)=>{
@@ -583,7 +583,7 @@ app.post('/new/inventory/:id',(request,response)=>{
     Inventory.save().then((result)=>{
         response.send(result);
 
-        signup.findByIdAndUpdate(farmer_id,{inventory: result._id},{
+        signup.findByIdAndUpdate(farmer_id,{$push: {inventory: result._id}},{
             new: true
         }).then((result)=>{
             if(!result)
