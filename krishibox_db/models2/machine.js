@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const signup = require('./signup');
+const {signup} = require('./signup');
 
 const machineSchema = new mongoose.Schema({
     name: {

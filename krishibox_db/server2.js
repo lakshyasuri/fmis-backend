@@ -9,6 +9,7 @@ const {field} = require('./models2/field');
 const {weather} = require('./models2/weather');
 const {machine} = require('./models2/machine');
 const {inventory} = require('./models2/inventory');
+const {sub_field} = require('./models2/sub_field');
 
 const {ObjectID} = require('mongodb');
 
@@ -125,26 +126,22 @@ app.post('/new/field/:id',(request,response)=>{
     var reference;
     var flag = 0;
     var field_id;
-
-    signup.findById(id).then((result)=>{
-        if(!result)
-        {
-            return response.status(404).send('no record found, hence cant post');
-        }
-        reference = result._id;
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
         var Field = new field({
             name: request.body.name, 
             latitude: request.body.latitude, 
             longitude: request.body.longitude,
             area: request.body.area,
-            owner: reference
+            owner: id
         });
         
         Field.save().then((result)=>{
             response.send(result);
-            field_id = result._id;
-            signup.findByIdAndUpdate(reference,{
-                field: field_id
+            signup.findByIdAndUpdate(id,{
+                field: result._id
             }).then((res)=>{
                  if(!res)
                  {
@@ -152,15 +149,11 @@ app.post('/new/field/:id',(request,response)=>{
                  }
                 console.log(res);
             },(err)=>{
-                response.send(e);
+                response.status(400).send(e);
             });
         },(e)=>{
             response.status(400).send(e)
         });
-        //console.log(field_id);
-    },(e)=>{
-        response.status(400).send(e);
-    });
 });
 
 app.get('/new/field',(request,response)=>{
@@ -703,8 +696,51 @@ app.patch('/new/inventory/:id',(request,response)=>{
     });
 });
 
-//------------------------------------------------------------------
+//---------------------------SUB_FIELD---------------------------------------
 
+app.post('/new/sub_field/:id',(request,response)=>{
+    var id = request.params.id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    field.findById(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found (field)');
+        }
+
+        var subField = new sub_field({
+            name : request.body.name, 
+            latitude : request.body.latitude, 
+            longitude: request.body.longitude, 
+            area: request.body.area,
+            field: id
+        });
+
+        subField.save().then((result)=>{
+            response.send(result);
+
+            field.findByIdAndUpdate(id,{$push:{sub_fields: result._id}},{
+                new: true
+            }).then((result)=>{
+                console.log(result);
+            },(e)=>{
+                response.status(400).send(e);
+            });
+
+        },(e)=>{
+
+            response.status(400).send(e);
+        });
+
+    },(e)=>{
+        response.status(400).send(e);
+    });
+
+    
+});
 
 
 

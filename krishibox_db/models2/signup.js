@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
-const field = require('./field');
-const machine = require('./machine');
-const inventory = require('./inventory');
+const {field} = require('./field');
+const {machine} = require('./machine');
+const {inventory} = require('./inventory');
 
 const  signupSchema = new mongoose.Schema({
     name: {
