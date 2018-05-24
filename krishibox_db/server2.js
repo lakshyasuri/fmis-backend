@@ -11,6 +11,7 @@ const {machine} = require('./models2/machine');
 const {inventory} = require('./models2/inventory');
 const {sub_field} = require('./models2/sub_field');
 const {worker} = require('./models2/worker');
+const {season} = require('./models2/season');
 
 const {ObjectID} = require('mongodb');
 
@@ -948,10 +949,54 @@ app.patch('/new/worker/:id',(request,response)=>{
     });
 });
 
-//--------------
+//---------------------SEASON--------------------------------------
 
+app.post('/new/season/:Sub_field/',(request,response)=>{
+    var sub_field_id = request.params.Sub_field; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
 
+    sub_field.findById(sub_field_id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no sub field found');
+        }
+        
+        inventory.find({
+            name: request.body.crop, 
+            type: 'food grain'
+        }).then((result)=>{
+            if(result.length==0)
+            {
+                return response.status(404).send('not present in inventory. Please refill the inventory')
+            }
 
+            var Season = new season({
+                name: request.body.name, 
+                start_date: new Date(+request.body.start_date),
+                end_date: new Date(+request.body.end_date),
+                sub_field: sub_field_id, 
+                crop: request.body.crop, 
+                finished: request.body.finished
+            }); 
+
+            Season.save().then((result)=>{
+                response.send(result);
+            },(e)=>{
+                response.status(400).send(e);
+            })
+        },(e)=>{
+            response.status(400).send(e);
+        });
+
+    
+
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
 app.listen(port,()=>{
     console.log(`started on port ${port}`);
 });
