@@ -10,6 +10,7 @@ const {weather} = require('./models2/weather');
 const {machine} = require('./models2/machine');
 const {inventory} = require('./models2/inventory');
 const {sub_field} = require('./models2/sub_field');
+const {worker} = require('./models2/worker');
 
 const {ObjectID} = require('mongodb');
 
@@ -739,10 +740,215 @@ app.post('/new/sub_field/:id',(request,response)=>{
         response.status(400).send(e);
     });
 
-    
 });
 
+app.get('/new/sub_field',(request,response)=>{
+    sub_field.find().populate({
+        path: 'field', 
+        select: 'name area owner weather'
+    }).then((result)=>{
+        if(result.lenght==0)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
 
+app.get('/new/sub_field/:id',(request,response)=>{
+    var id = request.params.id;
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    sub_field.findById(id).populate({
+        path: 'field', 
+        select: 'name area owner weather'
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.delete('/new/sub_field/:id',(request,response)=>{
+    var id = request.params.id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    sub_field.findByIdAndRemove(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found');
+        }
+        
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.patch('/new/sub_field/:id',(request,response)=>{
+    var id = request.params.id; 
+    var body = _.pick(request.body,['name','katitude','longitude','area']);
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    sub_field.findByIdAndUpdate(id,{$set: body},{new: true}).populate({
+        path: 'field', 
+        select: 'name area owner weather'
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+
+
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+//-------------------------------------WORKER-------------------------
+
+app.post('/new/worker/:Sub_field',(request,response)=>{
+    var id = request.params.Sub_field;
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    sub_field.findById(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found (sub_field)');
+        }
+
+        var Worker = new worker({
+            name: request.body.name, 
+            number: request.body.number, 
+            address: request.body.address, 
+            aadhar: request.body.aadhar, 
+            assigned_status: request.body.assigned_status, 
+            assigned_to_field: id
+        });
+
+        Worker.save().then((result)=>{
+            response.send(result);
+
+            sub_field.findByIdAndUpdate(id,{$push:{
+                worker_history: result._id
+            }},{new: true}).then((result)=>{
+                console.log(result);
+            },(e)=>{
+                response.status(400).send(e);
+            });
+        },(e)=>{
+            response.status(400).send(e);
+        })
+
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/worker',(request,response)=>{
+    worker.find().populate({
+        path: 'assigned_to_field farmer', 
+        select: 'name area field worker_history name number workers',
+    }).then((result)=>{
+        if(result.lenght==0)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/worker/:id',(request,response)=>{
+    var id = request.params.id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    worker.findById(id).populate({
+        path: 'assigned_to_field farmer', 
+        select: 'name area field worker_history name number workers'
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.delete('/new/worker/:id',(request,response)=>{
+    var id = request.params.id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    worker.findByIdAndRemove(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.patch('/new/worker/:id',(request,response)=>{
+    var id = request.params.id; 
+    var body = _.pick(request.body,['name','number','address','aadhar','assigned_status','assigned_to_field']);
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    if(typeof request.body.assigned_status!='undefined')
+    {
+        if(request.body.assigned_status == false)
+        {
+            body.assigned_to_field = null;
+        }
+    }
+
+    worker.findByIdAndUpdate(id,{$set:body},{new: true}).populate({
+        path: 'assigned_to_field farmer', 
+        select: 'name area field worker_history name number workers'
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+//--------------
 
 
 

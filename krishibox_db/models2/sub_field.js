@@ -1,6 +1,7 @@
 const mongoose = require('mongoose'); 
 const {signup} = require('./signup');
 const {field} = require('./field');
+const {worker} = require('./worker');
 
 const subFieldSchema = new mongoose.Schema({
     name: {
@@ -23,7 +24,13 @@ const subFieldSchema = new mongoose.Schema({
     field: {
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'field' 
-    }
+    }, 
+    worker_history: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'worker'
+        }
+    ]
 });
 
 const sub_field = mongoose.model('sub_field',subFieldSchema);
