@@ -25,6 +25,7 @@ const seasonSchema = new mongoose.Schema({
     }, 
     finished: {
         type: Boolean, 
+        default: false
     }
 }); 
 

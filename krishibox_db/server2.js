@@ -12,6 +12,7 @@ const {inventory} = require('./models2/inventory');
 const {sub_field} = require('./models2/sub_field');
 const {worker} = require('./models2/worker');
 const {season} = require('./models2/season');
+const {sowning} = require('./models2/sowing');
 
 const {ObjectID} = require('mongodb');
 
@@ -953,7 +954,7 @@ app.patch('/new/worker/:id',(request,response)=>{
 
 app.post('/new/season/:Sub_field/',(request,response)=>{
     var sub_field_id = request.params.Sub_field; 
-    if(!ObjectID.isValid(id))
+    if(!ObjectID.isValid(sub_field_id))
     {
         return response.status(400).send('ID not valid');
     }
@@ -968,6 +969,7 @@ app.post('/new/season/:Sub_field/',(request,response)=>{
             name: request.body.crop, 
             type: 'food grain'
         }).then((result)=>{
+
             if(result.length==0)
             {
                 return response.status(404).send('not present in inventory. Please refill the inventory')
@@ -997,6 +999,133 @@ app.post('/new/season/:Sub_field/',(request,response)=>{
         response.status(400).send(e);
     });
 });
+
+app.get('/new/season',(request,response)=>{
+    season.find().populate({
+        path: 'sub_field', 
+        select: 'name area field worker history', 
+        populate: {
+            path: 'field', 
+            select: 'name area owner'
+        }
+    }).then((result)=>{
+        if(result.length==0)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/season/:id',(request,response)=>{
+    var id = request.params.id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    season.findById(id).populate({
+        path: 'sub_field', 
+        select: 'name area field worker history', 
+        populate: {
+            path: 'field', 
+            select: 'name area owner'
+        }
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.delete('/new/season/:id',(request,response)=>{
+    var id = request.params.id;
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    season.findByIdAndRemove(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record foudnd');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.patch('/new/season/:id',(request,response)=>{
+    var id = request.params.id; 
+    var body = _.pick(request.body,['name','start_date','end_date','crop','finished']); 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    if(body.crop)
+    {
+        inventory.find({
+            name: body.crop, 
+            type: 'food grain'
+        }).then((result)=>{
+            if(result.length == 0)
+            {
+                return response.status(404).send('not present in the inventory. please refill');
+            }
+            season.findByIdAndUpdate(id,{$set: body},{new : true}).populate({
+                path: 'sub_field', 
+                select: 'name area field worker history', 
+                populate: {
+                    path: 'field', 
+                    select: 'name area owner'
+                }
+            }).then((result)=>{
+                if(!result)
+                {
+                    return response.status(404).send('no record found');
+                }
+                response.send(result);
+            },(e)=>{
+                response.status(400).send(e);
+            });
+        },(e)=>{
+            response.status(400).send(e);
+        });
+    }
+    else{
+    season.findByIdAndUpdate(id,{$set: body},{new : true}).populate({
+        path: 'sub_field', 
+        select: 'name area field worker history', 
+        populate: {
+            path: 'field', 
+            select: 'name area owner'
+        }
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+    }
+});
+
+//----------------------------SOWING----------------------------------
+
+app.post('/new/sowing',(request,response)=>{
+    
+})
+
 app.listen(port,()=>{
     console.log(`started on port ${port}`);
 });
