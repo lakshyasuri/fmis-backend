@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 
 const {season} = require('./season');
 const {sub_field} = require('./sub_field');
+const {signup} = require('./signup');
+
 const sowingSchema = new mongoose.Schema({
     start_date: {
         type: Date, 
@@ -21,6 +23,10 @@ const sowingSchema = new mongoose.Schema({
     sub_field: {
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'sub_field'
+    },
+    crop: {
+        type: String, 
+        trim: true
     },
     amount_sown: {
         type: Number, 
@@ -51,6 +57,10 @@ const sowingSchema = new mongoose.Schema({
     total_cost: {
         type: Number, 
         required: true,
+    }, 
+    farmer: {
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'signup'
     }
 
 });

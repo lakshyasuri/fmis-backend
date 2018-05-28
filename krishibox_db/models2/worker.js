@@ -28,6 +28,10 @@ const workerSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId, 
         default: null, 
         ref: 'sub_field'
+    }, 
+    farmer: {
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'signup'
     }
 
 }); 

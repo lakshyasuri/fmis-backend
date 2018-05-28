@@ -12,7 +12,7 @@ const {inventory} = require('./models2/inventory');
 const {sub_field} = require('./models2/sub_field');
 const {worker} = require('./models2/worker');
 const {season} = require('./models2/season');
-const {sowning} = require('./models2/sowing');
+const {sowing} = require('./models2/sowing');
 
 const {ObjectID} = require('mongodb');
 
@@ -65,7 +65,7 @@ app.get('/new/signup/:id',(request,response)=>{
     }
 
     signup.findById(id).populate({
-        path: 'field machines inventort', 
+        path: 'field machines inventory', 
         select: '_id name area weather name manufacturer model year quantity status name type quantity unit', 
         populate: {
             path: 'weather', 
@@ -133,6 +133,12 @@ app.post('/new/field/:id',(request,response)=>{
     {
         return response.status(400).send('ID not valid');
     }
+
+    signup.findById(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no user found');
+        }
         var Field = new field({
             name: request.body.name, 
             latitude: request.body.latitude, 
@@ -157,6 +163,10 @@ app.post('/new/field/:id',(request,response)=>{
         },(e)=>{
             response.status(400).send(e)
         });
+    },(e)=>{
+        response.status(400).send(e);
+    });
+        
 });
 
 app.get('/new/field',(request,response)=>{
@@ -355,26 +365,39 @@ app.get('/new/weather',(request,response)=>{
     });
 });
 
-app.get('/new/weather/:id',(request,response)=>{
-    var id = request.params.id;
+app.get('/new/weather/:field_id',(request,response)=>{
+    var id = request.params.field_id;
 
     if(!ObjectID.isValid(id))
     {
         return repsonse.status(400).send('Id entered not valid');
     }
 
-    weather.findById(id).populate({
-        path: 'field farmer',
-        select: 'name area name number'
-    }).then((result)=>{
+    field.findById(id).then((result)=>{
         if(!result)
         {
-            return response.status(404).send('no record found');
+            return response.status(404).send('no field found');
         }
-        response.send(result);
+
+        weather.find({
+            field: id
+        }).populate({
+            path: 'field farmer',
+            select: 'name area name number'
+        }).then((result)=>{
+            if(result.length == 0)
+            {
+                return response.status(404).send('no record found');
+            }
+            response.send(result);
+        },(e)=>{
+            response.status(400).send(e);
+        });
     },(e)=>{
         response.status(400).send(e);
-    });
+    })
+
+    
 });
 
 app.delete('/new/weather/:id',(request,response)=>{
@@ -426,37 +449,43 @@ app.post('/new/machine/:id',(request,response)=>{
         return response.status(400).send('ID not valid');
     }
 
-    var Machine = new machine({
-        name: request.body.name, 
-        imageID: request.body.imageID, 
-        manufacturer: request.body.manufacturer, 
-        model: request.body.model, 
-        year: request.body.year, 
-        quantity: request.body.quantity, 
-        status: request.body.status, 
-        farmer: farmer_id
-    });
+    signup.findById(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no user found');
+        }
 
-    Machine.save().then((result)=>{
-        response.send(result);
-
-        signup.findByIdAndUpdate(farmer_id,{
-            $push:{machines: result._id}
-        },{new: true}).then((result)=>{
-            if(!result)
-            {
-                return response.status(404).send('no record found (signup)');
-            }
+        var Machine = new machine({
+            name: request.body.name, 
+            imageID: request.body.imageID, 
+            manufacturer: request.body.manufacturer, 
+            model: request.body.model, 
+            year: request.body.year, 
+            quantity: request.body.quantity, 
+            status: request.body.status, 
+            farmer: farmer_id
+        });
     
+        Machine.save().then((result)=>{
+            response.send(result);
+    
+            signup.findByIdAndUpdate(farmer_id,{
+                $push:{machines: result._id}
+            },{new: true}).then((result)=>{
+                if(!result)
+                {
+                    return response.status(404).send('no record found (signup)');
+                }
+        
+            },(e)=>{
+                response.status(400).send(e);
+            });
         },(e)=>{
-            response.status(400).send(e);
+            response.status(400).send(e)
         });
     },(e)=>{
-        response.status(400).send(e)
+        response.status(400).send(e);
     });
-
-
-
 });
 
 app.get('/new/machine',(request,response)=>{
@@ -478,29 +507,41 @@ app.get('/new/machine',(request,response)=>{
     });
 });
 
-app.get('/new/machine/:id',(request,response)=>{
-    var id = request.params.id; 
+app.get('/new/machine/:farmer_id',(request,response)=>{
+    var id = request.params.farmer_id; 
     if(!ObjectID.isValid(id))
     {
         return response.status(400).send('ID not valid');
     }
 
-    machine.findById(id).populate({
-        path: 'farmer', 
-        select: 'name number', 
-        populate: {
-            path: 'field', 
-            select: 'name area'
-        }
-    }).then((result)=>{
+    signup.findById(id).then((result)=>{
         if(!result)
         {
-            return response.status(404).send('no record found');
+            return response.status(404).send('no user found');
         }
-        response.send(result);
+
+        machine.find({
+            farmer: id
+        }).populate({
+            path: 'farmer', 
+            select: 'name number', 
+            populate: {
+                path: 'field', 
+                select: 'name area'
+            }
+        }).then((result)=>{
+            if(!result)
+            {
+                return response.status(404).send('no record found');
+            }
+            response.send(result);
+        },(e)=>{
+            response.status(400).send(e);
+        });
     },(e)=>{
         response.status(400).send(e);
     });
+    
 });
 
 app.delete('/new/machine/:id',(request,response)=>{
@@ -564,7 +605,13 @@ app.post('/new/inventory/:id',(request,response)=>{
         return response.status(400).send('ID not valid');
     }
 
-    var body = request.body;
+    signup.findById(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no user found');
+        }
+
+        var body = request.body;
     var Inventory = new inventory({
         name: body.name, 
         type: body.type, 
@@ -594,8 +641,9 @@ app.post('/new/inventory/:id',(request,response)=>{
     },(e)=>{
         response.status(400).send(e);
     });
-
-
+    },(e)=>{
+        response.status(400).send(e);
+    });
 });
 
 app.get('/new/inventory',(request,response)=>{
@@ -621,33 +669,45 @@ app.get('/new/inventory',(request,response)=>{
     });
 });
 
-app.get('/new/inventory/:id',(request,response)=>{
-    var id = request.params.id; 
+app.get('/new/inventory/:farmer_id',(request,response)=>{
+    var id = request.params.farmer_id; 
     if(!ObjectID.isValid(id))
     {
         return response.status(400).send('ID not valid');
     }
 
-    inventory.findById(id).populate({
-        path: 'farmer', 
-        select: 'name number field', 
-        populate: {
-            path: 'field', 
-            select: 'name area weather'
-        }, 
-        populate: {
-            path: 'weather',
-            select: 'temp humidty general'
-        }
-    }).then((result)=>{
+    signup.findById(id).then((result)=>{
         if(!result)
         {
-            return response.status(404).send('no record found');
+            return response.status(404).send('no user found');
         }
-        response.send(result);
+
+        inventory.find({
+            farmer: id
+        }).populate({
+            path: 'farmer', 
+            select: 'name number field', 
+            populate: {
+                path: 'field', 
+                select: 'name area weather'
+            }, 
+            populate: {
+                path: 'weather',
+                select: 'temp humidty general'
+            }
+        }).then((result)=>{
+            if(!result)
+            {
+                return response.status(404).send('no record found');
+            }
+            response.send(result);
+        },(e)=>{
+            response.status(400).send(e);
+        });
     },(e)=>{
         response.status(400).send(e);
     });
+    
 });
 
 app.delete('/new/inventory/:id',(request,response)=>{
@@ -749,7 +809,7 @@ app.get('/new/sub_field',(request,response)=>{
         path: 'field', 
         select: 'name area owner weather'
     }).then((result)=>{
-        if(result.lenght==0)
+        if(result.length==0)
         {
             return response.status(404).send('no record found');
         }
@@ -759,7 +819,7 @@ app.get('/new/sub_field',(request,response)=>{
     });
 });
 
-app.get('/new/sub_field/:id',(request,response)=>{
+app.get('/new/singleSub_field/:id',(request,response)=>{
     var id = request.params.id;
     if(!ObjectID.isValid(id))
     {
@@ -775,6 +835,37 @@ app.get('/new/sub_field/:id',(request,response)=>{
             return response.status(404).send('no record found');
         }
         response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/sub_field/:field_id',(request,response)=>{
+    var id = request.params.field_id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    field.findById(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no field found');
+        }
+
+        
+    sub_field.findById(id).populate({
+        path: 'field', 
+        select: 'name area owner weather'
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no record found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
     },(e)=>{
         response.status(400).send(e);
     });
@@ -825,8 +916,9 @@ app.patch('/new/sub_field/:id',(request,response)=>{
 
 //-------------------------------------WORKER-------------------------
 
-app.post('/new/worker/:Sub_field',(request,response)=>{
+app.post('/new/worker/:Sub_field/:farmer_id',(request,response)=>{
     var id = request.params.Sub_field;
+    var farmer_id = request.params.farmer_id;
     if(!ObjectID.isValid(id))
     {
         return response.status(400).send('ID not valid');
@@ -844,7 +936,8 @@ app.post('/new/worker/:Sub_field',(request,response)=>{
             address: request.body.address, 
             aadhar: request.body.aadhar, 
             assigned_status: request.body.assigned_status, 
-            assigned_to_field: id
+            assigned_to_field: id, 
+            farmer: farmer_id
         });
 
         Worker.save().then((result)=>{
@@ -857,9 +950,15 @@ app.post('/new/worker/:Sub_field',(request,response)=>{
             },(e)=>{
                 response.status(400).send(e);
             });
+
+            signup.findByIdAndUpdate(farmer_id,{$push:{
+                workers: result._id
+            }}).then((e)=>{
+                response.status(400).send(e);
+            })
         },(e)=>{
             response.status(400).send(e);
-        })
+        });
 
     },(e)=>{
         response.status(400).send(e);
@@ -871,7 +970,7 @@ app.get('/new/worker',(request,response)=>{
         path: 'assigned_to_field farmer', 
         select: 'name area field worker_history name number workers',
     }).then((result)=>{
-        if(result.lenght==0)
+        if(result.length==0)
         {
             return response.status(404).send('no record found');
         }
@@ -902,7 +1001,39 @@ app.get('/new/worker/:id',(request,response)=>{
     });
 });
 
-app.delete('/new/worker/:id',(request,response)=>{
+app.get('/new/worker/:farmer_id',(request,response)=>{
+    var id = request.params.farmer_id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    signup.findById(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no user found');
+        }
+
+        worker.find({
+            farmer: id
+        }).populate({
+            path: 'assigned_to_field farmer', 
+            select: 'name area field worker_history name number workers'
+        }).then((result)=>{
+            if(!result)
+            {
+                return response.status(404).send('no record found');
+            }
+            response.send(result);
+        },(e)=>{
+            response.status(400).send(e);
+        }); 
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.delete('/new/singleWorker/:id',(request,response)=>{
     var id = request.params.id; 
     if(!ObjectID.isValid(id))
     {
@@ -952,8 +1083,9 @@ app.patch('/new/worker/:id',(request,response)=>{
 
 //---------------------SEASON--------------------------------------
 
-app.post('/new/season/:Sub_field/',(request,response)=>{
+app.post('/new/season/:Sub_field/:farmer_id',(request,response)=>{
     var sub_field_id = request.params.Sub_field; 
+    var farmer_id = request.params.farmer_id;
     if(!ObjectID.isValid(sub_field_id))
     {
         return response.status(400).send('ID not valid');
@@ -967,7 +1099,8 @@ app.post('/new/season/:Sub_field/',(request,response)=>{
         
         inventory.find({
             name: request.body.crop, 
-            type: 'food grain'
+            type: 'food grain', 
+            farmer: farmer_id
         }).then((result)=>{
 
             if(result.length==0)
@@ -981,7 +1114,8 @@ app.post('/new/season/:Sub_field/',(request,response)=>{
                 end_date: new Date(+request.body.end_date),
                 sub_field: sub_field_id, 
                 crop: request.body.crop, 
-                finished: request.body.finished
+                finished: request.body.finished, 
+                farmer: farmer_id
             }); 
 
             Season.save().then((result)=>{
@@ -1019,7 +1153,7 @@ app.get('/new/season',(request,response)=>{
     });
 });
 
-app.get('/new/season/:id',(request,response)=>{
+app.get('/new/singleSeason/:id',(request,response)=>{
     var id = request.params.id; 
     if(!ObjectID.isValid(id))
     {
@@ -1044,6 +1178,42 @@ app.get('/new/season/:id',(request,response)=>{
     });
 });
 
+app.get('/new/season/:farmer_id',(request,rsponse)=>{
+    var id = request.params.farmer_id;
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid')
+    }
+    
+    signup.findById(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no farmer found');
+        }
+
+        season.find({
+            farmer: id
+        }).populate({
+            path: 'sub_field', 
+            select: 'name area field worker history', 
+            populate: {
+                path: 'field', 
+                select: 'name area owner'
+            }  
+        }).then((result)=>{
+            if(result.length == 0)
+            {
+                return response.status(404).send('no season found');
+            }
+            response.send(result);
+        },(e)=>{
+            response.status(400).send(e);
+        });
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
 app.delete('/new/season/:id',(request,response)=>{
     var id = request.params.id;
     if(!ObjectID.isValid(id))
@@ -1062,8 +1232,9 @@ app.delete('/new/season/:id',(request,response)=>{
     });
 });
 
-app.patch('/new/season/:id',(request,response)=>{
+app.patch('/new/season/:id/:farmer_id',(request,response)=>{
     var id = request.params.id; 
+    var farmer_id = request.params.farmer_id;
     var body = _.pick(request.body,['name','start_date','end_date','crop','finished']); 
     if(!ObjectID.isValid(id))
     {
@@ -1074,7 +1245,8 @@ app.patch('/new/season/:id',(request,response)=>{
     {
         inventory.find({
             name: body.crop, 
-            type: 'food grain'
+            type: 'food grain', 
+            farmer: farmer_id
         }).then((result)=>{
             if(result.length == 0)
             {
@@ -1120,11 +1292,269 @@ app.patch('/new/season/:id',(request,response)=>{
     }
 });
 
-//----------------------------SOWING----------------------------------
+//----------------------------SOWING--------------------------------------------------------------------------------------------------------------------------
 
-app.post('/new/sowing',(request,response)=>{
-    
-})
+app.post('/new/sowing/:id/:farmer_id',(request,response)=>{
+    var id = request.params.id; 
+    var farmer_id = request.params.farmer_id;
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    season.findById(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no season found');
+        }
+
+        var sub_field_id = result.sub_field;
+        var crop = result.crop;
+        inventory.find({
+            name: result.crop, 
+            type: 'food grain', 
+            farmer: farmer_id
+        }).then((result)=>{
+            //console.log(result[0].quantity);
+            if(result.length==0)
+            {
+                return response.status(404).send('food grain not present in the inventory. please refill')
+            }
+
+            if(result[0].quantity < request.body.amount_sown)
+            {
+                return response.status(400).send(`not enough ${result[0].name} in the inventory. Amount present is ${result[0].quantity}`);
+            }
+
+            var Sowing = new sowing({
+                start_date: request.body.start_date, 
+                status: request.body.status, 
+                end_date: request.body.end_date, 
+                season: id, 
+                sub_field: sub_field_id, 
+                crop: crop,
+                amount_sown: request.body.amount_sown, 
+                sown_unit: request.body.sown_unit, 
+                expected_yield: request.body.expected_yield,
+                yield_unit: request.body.yield_unit, 
+                job_done_by: request.body.job_done_by, 
+                job_duration: request.body.job_duration, 
+                duration_unit: request.body.duration_unit, 
+                total_cost: request.body.total_cost, 
+                farmer: farmer_id, 
+            });
+            var new_quantity = result[0].quantity - request.body.amount_sown;
+            inventory.update({
+                name: result[0].name, 
+                type: 'food grain', 
+                farmer: farmer_id
+            },{$set:{quantity: new_quantity}},{new: true}).then((result)=>{
+                console.log(result);
+            },(e)=>{
+                 response.status(400).send(e);
+            });
+
+            Sowing.save().then((result)=>{
+
+                response.send(result);
+            },(e)=>{
+                response.status(400).send(e);
+            });
+        },(e)=>{
+            response.status(400).send(e);
+        });
+
+
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/sowing',(request,response)=>{
+    sowing.find().populate({
+        path: 'season sub_field', 
+        select: 'name start_date end_date crop finished name area'
+    }).then((result)=>{
+        if(result.length == 0)
+        {
+            return response.status(404).send('no sowing activity found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/sowing/:farmer_id',(request,response)=>{
+    var id = request.params.farmer_id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    signup.findById(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no farmer found');
+        }
+
+        sowing.find({
+            farmer: id
+        }).populate({
+            path: 'season sub_field', 
+            select: 'name start_date end_date crop finished name area'  
+        }).then((result)=>{
+            if(result.length==0)
+            {
+                return response.status(404).send('no sowing activity found');
+            }
+            response.send(result);
+        },(e)=>{
+            response.status(400).send(e);
+        });
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/singleSowing/:id/',(request,response)=>{
+    var id = request.params.id;
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    sowing.findById(id).populate({
+        path: 'season sub_field', 
+        select: 'name start_date end_date crop finished name area'  
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no sowing activity found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.delete('/new/sowing/:id',(request,response)=>{
+    var id = request.params.id;
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    sowing.findByIdAndRemove(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no sowing activity found');
+        }
+        response.send(result);
+        console.log(result.amount_sown);
+        inventory.update({
+            farmer: result.farmer, 
+            name: result.crop, 
+            type: 'food grain'
+        },{$inc: {quantity: result.amount_sown}},{new: true}).then((result)=>{
+            if(result.length == 0)
+            {
+                return response.status(404).send('no inventory record found');
+            }
+        },(e)=>{
+            response.status(400).send(e);
+        });
+    },(e)=>{
+        response.status(400).send(e);
+    });
+
+});
+
+app.patch('/new/sowing/:id',(request,response)=>{
+    var id = request.params.id;
+    var body = _.pick(request.body,['start_date','status','end_date','amount_sown','sown_unit','expected_yield','yield_unit','job_done_by','job_duration','duration_unit','total_cost']);
+
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    if(request.body.amount_sown)
+    {
+        //console.log('heyzzzz')
+
+        sowing.findById(id).then((result)=>{
+            if(!result)
+            {
+                return response.status(404).send('no sowing activity found');
+            }
+            var net_quantity = result.amount_sown - body.amount_sown;
+            console.log(net_quantity);
+            inventory.find({
+                farmer: result.farmer, 
+                name: result.crop, 
+                type: 'food grain'
+            }).then((result)=>{
+                if(result.length == 0)
+                {
+                    return response.status(404).send('no inventory item found')
+                }
+                console.log(result[0].quantity + net_quantity);
+                if(result[0].quantity + net_quantity < 0)
+                {
+                    return response.status(400).send('not enough quantity in the inventory, please refill!!');
+                }
+                inventory.update({
+                    farmer: result[0].farmer, 
+                    name: result[0].name, 
+                    type: 'food grain'  
+                },{$inc: {quantity: net_quantity}},{new: true}).then((result)=>{
+                    if(!result)
+                    {
+                        //return response.status(404).send('hellozzz');
+                        console.log('HELLOOO');
+                    }
+                },(e)=>{
+                    response.status(400).send(e);
+                });
+                sowing.findByIdAndUpdate(id,{$set: body},{new: true}).populate({
+                    path: 'season sub_field', 
+                    select: 'name start_date end_date crop finished name area'
+                }).then((result)=>{
+                    response.send(result);
+                },(e)=>{
+                    response.status(400).send(e);
+                });
+            },(e)=>{
+                response.status(400).send(e);
+            });
+
+        },(e)=>{
+            response.status(400).send(e);
+        });
+    }
+    else
+    {
+        sowing.findByIdAndUpdate(id,{$set: body},{new: true}).populate(
+            {
+                path: 'season sub_field', 
+                select: 'name start_date end_date crop finished name area'
+            }).then((result)=>{
+                if(!result)
+                {
+                    return response.status(404).send('no sowing activity found');
+                }
+                response.send(result);
+            },(e)=>{
+                response.status(400).send(e);
+            });
+    }
+
+     
+});
+
+
+
 
 app.listen(port,()=>{
     console.log(`started on port ${port}`);

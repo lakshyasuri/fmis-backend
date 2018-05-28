@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
-const {sub_field} = require('./signup');
+const {sub_field} = require('./sub_field');
+const {signup} = require('./signup');
 
 const seasonSchema = new mongoose.Schema({
     name: {
@@ -26,6 +27,10 @@ const seasonSchema = new mongoose.Schema({
     finished: {
         type: Boolean, 
         default: false
+    }, 
+    farmer: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: 'signup'
     }
 }); 
 
