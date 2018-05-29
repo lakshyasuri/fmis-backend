@@ -1,24 +1,26 @@
 const mongoose = require('mongoose');
 const {signup} = require('./signup');
-const {sub_field} = require('./sub_field');
 const {season} = require('./season');
+const {sub_field} = require('./sub_field');
 
-const fertilizationSchema = new mongoose.Schema({
+const weed_protectionSchema = new mongoose.Schema({
     start_date: {
         type: Date, 
-        default: Date.now(),
+        default: Date.now()
     }, 
     status: {
         type: String, 
-        default: "pending"
+        default: 'pending', 
+        trim: true
     }, 
     end_date: {
         type: Date, 
-        required: true,
+        required: true
     }, 
     name: {
         type: String, 
-        required: true,
+        required: true, 
+        trim: true
     }, 
     quantity: {
         type: Number, 
@@ -26,9 +28,11 @@ const fertilizationSchema = new mongoose.Schema({
     }, 
     unit: {
         type: String, 
+        trim: true
     }, 
     job_done_by: {
         type: String, 
+        trim: true
     }, 
     job_duration: {
         type: Number, 
@@ -38,12 +42,11 @@ const fertilizationSchema = new mongoose.Schema({
         default: 'hours'
     }, 
     total_cost: {
-        type: Number, 
-        //required: true
+        type: Number
     }, 
     crop: {
-        type: String,
-    },
+        type: String
+    }, 
     farmer: {
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'signup'
@@ -56,7 +59,7 @@ const fertilizationSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'sub_field'
     }
-}); 
+});
 
-const fertilization = mongoose.model('fertilization',fertilizationSchema);
-module.exports = {fertilization};
+const weed_protection = mongoose.model('weed_protection',weed_protectionSchema);
+module.exports = {weed_protection};
