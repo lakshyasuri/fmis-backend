@@ -13,6 +13,7 @@ const {sub_field} = require('./models2/sub_field');
 const {worker} = require('./models2/worker');
 const {season} = require('./models2/season');
 const {sowing} = require('./models2/sowing');
+const {irrigation} = require('./models2/irrigation');
 
 const {ObjectID} = require('mongodb');
 
@@ -1551,6 +1552,165 @@ app.patch('/new/sowing/:id',(request,response)=>{
     }
 
      
+});
+
+//-----------------------IRRIGATION-----------------------------------
+
+app.post('/new/irrigation/:season_id',(request,response)=>{
+    var season_id = request.params.season_id; 
+    //var farmer_id = request.params.farmer_id;
+
+    if(!ObjectID.isValid(season_id))/*  && !ObjectID.isValid(farmer_id) */
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    season.findById(season_id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no season found');
+        }
+
+        var sub_field_id = result.sub_field; 
+        var farmer_id = result.farmer; 
+        var season_crop = result.crop;
+
+        var Irrigation = new irrigation({
+            start_date: request.body.start_date, 
+            status: request.body.status, 
+            end_date: request.body.end_date, 
+            water_source: request.body.water_source, 
+            quantity: request.body.quantity, 
+            job_dobe_by: request.job_dobe_by, 
+            job_duration : request.body.job_duration, 
+            duration_unit: request.body.duration_unit, 
+            total_cost: request.body.total_cost, 
+            crop: season_crop,
+            farmer: farmer_id, 
+            sub_field: sub_field_id, 
+            season: season_id
+        });
+
+        Irrigation.save().then((result)=>{
+            response.send(result);
+        },(e)=>{
+            response.status(400).send(e);
+        });
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/irrigation',(request,response)=>{
+    irrigation.find().populate({
+        path: 'season sub_field', 
+        select: 'name start_date end_date crop finished name area'
+    }).then((result)=>{
+        if(result.length == 0)
+        {
+            return response.status(404).send('no irrigation activity found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/irrigation/:farmer_id',(request,response)=>{
+    var id = request.params.farmer_id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    signup.findById(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no farmer found');
+        }
+
+        irrigation.find({
+            farmer: id
+        }).populate({
+            path: 'season sub_field', 
+            select: 'name start_date end_date crop finished name area' 
+        }).then((result)=>{
+            if(result.length == 0)
+            {
+                return response.status(404).send('no irrigation activity found');
+            }
+
+            response.send(result);
+        },(e)=>{
+            response.status(400).send(e);
+        });
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/singleIrrigation/:id',(request,response)=>{
+    var id = request.params.id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    irrigation.findById(id).populate({
+        path: 'season sub_field', 
+        select: 'name start_date end_date crop finished name area'
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no irrigation activity found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.delete('/new/irrigation/:id',(request,response)=>{
+    var id = request.params.id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    irrigation.findByIdAndRemove(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no irrigation activity found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.patch('/new/irrigation/:id',(request,response)=>{
+    var id = request.params.id; 
+    var body =  _.pick(request.body,['start_date','status','end_date','water_source','quantity','job_done_by','job_duration','duration_unit','total_cost']);
+
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    irrigation.findByIdAndUpdate(id,{$set: body},{new: true}).populate({
+        path: 'season sub_field', 
+        select: 'name start_date end_date crop finished name area'
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no irrigation activity found');
+        }
+
+        response.send(result);
+        
+    },(e)=>{
+        response.status(400).send(e);
+    });
 });
 
 
