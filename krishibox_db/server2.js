@@ -14,6 +14,7 @@ const {worker} = require('./models2/worker');
 const {season} = require('./models2/season');
 const {sowing} = require('./models2/sowing');
 const {irrigation} = require('./models2/irrigation');
+const {fertilization} = require('./models2/fertilization')
 
 const {ObjectID} = require('mongodb');
 
@@ -606,7 +607,7 @@ app.post('/new/inventory/:id',(request,response)=>{
         return response.status(400).send('ID not valid');
     }
 
-    signup.findById(id).then((result)=>{
+    signup.findById(farmer_id).then((result)=>{
         if(!result)
         {
             return response.status(404).send('no user found');
@@ -1711,6 +1712,255 @@ app.patch('/new/irrigation/:id',(request,response)=>{
     },(e)=>{
         response.status(400).send(e);
     });
+});
+
+//---------------------FERTILIZATION--------------------------------
+
+app.post('/new/fertilization/:season_id',(request,response)=>{
+    var season_id = request.params.season_id;
+    // var farmer_id = request.params.id
+    if(!ObjectID.isValid(season_id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    season.findById(season_id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no season found');
+        }
+
+        var crop = result.crop; 
+        var sub_field_id = result.sub_field; 
+        var farmer_id = result.farmer;
+
+        inventory.find({
+            name: request.body.name, 
+            type: 'fertilizer', 
+            farmer: farmer_id
+        }).then((result)=>{
+            if(result.length == 0)
+            {
+                return response.status(404).send('fertilizer not present in the inventory. please add');
+            }
+
+            if(result[0].quantity == 0)
+            {
+                return response.status(400).send(`${request.body.name} fertilizer is finished. please refill it in the inventory`);
+            }
+
+            if(result[0].quantity<request.body.quantity)
+            {
+                return response.status(400).send(`not enough ${request.body.name} fertilizer present in the inventory. amount present is ${result[0].quantity}`);
+            }
+            console.log('heyzzz');
+
+            var Fertilization = new fertilization({
+                start_date: request.body.start_date, 
+                status: request.body.status, 
+                end_date: request.body.end_date, 
+                name: request.body.name, 
+                quantity: request.body.quantity, 
+                job_done_by: request.body.job_done_by, 
+                job_duration: request.body.job_duration, 
+                duration_unit: request.body.duration_unit, 
+                total_cost: request.body.total_cost,
+                crop: crop, 
+                farmer: farmer_id, 
+                season: season_id, 
+                sub_field: sub_field_id
+            });
+
+            var new_quantity = result[0].quantity - request.body.quantity;
+            
+            inventory.findByIdAndUpdate(result[0]._id,{quantity: new_quantity},{new: true}).then((result)=>{
+                console.log(result);
+
+                Fertilization.save().then((result)=>{
+                    response.send(result);
+                },(e)=>{
+                    response.status(400).send(e);
+                });
+            },(e)=>{
+                response.status(400).send(e);
+            });
+
+        },(e)=>{
+            response.status(400).send(e);
+        });
+
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/fertilization',(request,response)=>{
+    fertilization.find().populate({
+        path: 'season sub_field', 
+        select: 'name start_date end_date crop finished name area'
+    }).then((result)=>{
+        if(result.length == 0)
+        {
+            return response.status(404).send('no fertilization activity found');
+        }
+
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/fertilization/:farmer_id',(request,response)=>{
+    var id = request.params.farmer_id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    signup.findById(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no farmer found');
+        }
+
+        fertilization.find({
+            farmer: id
+        }).populate({
+            path: 'season sub_field', 
+            select: 'name start_date end_date crop finished name area'
+        }).then((result)=>{
+            if(result.length == 0)
+            {
+                return response.status(404).send('no fertilization activity found');
+            }
+
+            response.send(result);
+        },(e)=>{
+            response.status(400).send(e);
+        });
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/singleFertilization/:id',(request,response)=>{
+    var id = request.params.id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    fertilization.findById(id).populate({
+        path: 'season sub_field', 
+        select: 'name start_date end_date crop finished name area'
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no fertilization activity found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.delete('/new/fertilization/:id',(request,response)=>{
+    var id = request.params.id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    fertilization.findByIdAndRemove(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no fertilization activity found');
+        }
+        response.send(result);
+
+        inventory.update({
+            name: result.name, 
+            type: 'fertilizer', 
+            farmer: result.farmer,
+        },{$inc: {quantity: result.quantity}}).then((result)=>{
+            console.log('inventory updated!');
+        },(e)=>{
+            response.status(400).send(e);
+        });
+    },(e)=>{
+        response.status(400).send(e);
+    });
+
+});
+
+app.patch('/new/fertilization/:id',(request,response)=>{
+    var id = request.params.id; 
+    var body = _.pick(request.body,['start_date','status','end_date','name','quantity','unit','job_done_by','job_duration','duration_unit','total_cost']);
+
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    if(body.quantity)
+    {
+        fertilization.findById(id).then((result)=>{
+            if(!result)
+            {
+                return response.status(404).send('no fertilization activity found');
+            }
+
+            var net_quantity = result.quantity - body.quantity;
+
+            inventory.find({
+                name: result.name, 
+                type: 'fertilizer', 
+                farmer: result.farmer,
+            }).then((result)=>{
+                
+                if(result[0].quantity + net_quantity < 0)
+                {
+                    return response.status(400).send(`not enough ${result[0].name} fertilizer present in the inventory. amount present is ${result[0].quantity}`);
+                }
+
+                inventory.findByIdAndUpdate(result[0]._id,{$inc: {quantity: net_quantity}}).then((result)=>{
+
+                    fertilization.findByIdAndUpdate(id,{$set: body},{new: true}).populate({
+                        path: 'season sub_field', 
+                        select: 'name start_date end_date crop finished name area'
+                    }).then((result)=>{
+                        response.send(result);
+                    },(e)=>{
+                        response.status(400).send(e);
+                    });
+
+                },(e)=>{
+                    response.status(400).send(e);
+                });
+            },(e)=>{
+                response.status(400).send(e);
+            });
+        },(e)=>{
+            response.status(400).send(e);
+        });
+    }
+    else
+    {
+        fertilization.findByIdAndUpdate(id,{$set: body},{new: true}).populate({
+            path: 'season sub_field', 
+            select: 'name start_date end_date crop finished name area'
+        }).then((result)=>{
+            if(!result)
+            {
+                return response.status(404).send('no fertilization activity found');
+            }
+            response.send(result);
+        },(e)=>{
+            response.status(400).send(e);
+        });
+    }
+
+
 });
 
 
