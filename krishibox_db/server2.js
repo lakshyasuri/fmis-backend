@@ -17,6 +17,7 @@ const {irrigation} = require('./models2/irrigation');
 const {fertilization} = require('./models2/fertilization');
 const {weed_protection} = require('./models2/weed_protection');
 const {pest_protection} = require('./models2/pest_protection');
+const {harvesting} = require('./models2/harvesting');
 
 const {ObjectID} = require('mongodb');
 
@@ -1364,6 +1365,7 @@ app.post('/new/sowing/:id/:farmer_id',(request,response)=>{
             },(e)=>{
                 response.status(400).send(e);
             });
+
         },(e)=>{
             response.status(400).send(e);
         });
@@ -1372,6 +1374,7 @@ app.post('/new/sowing/:id/:farmer_id',(request,response)=>{
     },(e)=>{
         response.status(400).send(e);
     });
+
 });
 
 app.get('/new/sowing',(request,response)=>{
@@ -1584,7 +1587,7 @@ app.post('/new/irrigation/:season_id',(request,response)=>{
             end_date: request.body.end_date, 
             water_source: request.body.water_source, 
             quantity: request.body.quantity, 
-            job_dobe_by: request.job_dobe_by, 
+            job_done_by: request.job_done_by, 
             job_duration : request.body.job_duration, 
             duration_unit: request.body.duration_unit, 
             total_cost: request.body.total_cost, 
@@ -2441,6 +2444,209 @@ app.patch('/new/pest_protection/:id',(request,response)=>{
         },(e)=>{
             response.status(400).send(e);
         });
+    }
+
+
+});
+
+
+//--------------------HARVESTING-----------------------------------
+
+app.post('/new/harvesting/:season_id',(request,response)=>{
+    var id = request.params.season_id;
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    season.findById(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no season found');
+        }
+
+        var crop = result.crop;
+        var farmer_id = result.farmer;
+        var sub_field_id = result.sub_field;
+        
+        var Harvesting = new harvesting({
+            start_date: request.body.start_date, 
+            status: request.body.status, 
+            end_date: request.body.end_date, 
+            harvested_quantity: request.body.harvested_quantity,
+            unit: request.body.unit, 
+            job_done_by: request.body.job_done_by, 
+            job_duration: request.body.job_duration, 
+            duration_unit: request.body.duration_unit, 
+            total_cost: request.body.total_cost, 
+            crop: crop,
+            season: id, 
+            farmer: farmer_id, 
+            sub_field: sub_field_id
+        }); 
+
+        Harvesting.save().then((result)=>{
+            response.send(result);
+        },(e)=>{
+            response.status(400).send(e);
+        });
+
+    },(e)=>{
+        response.status(400).send(e);
+    });
+
+
+});
+
+app.get('/new/harvesting',(request,response)=>{
+    harvesting.find().populate({
+        path: 'season sub_field', 
+        select: 'name start_date end_date crop finished name area'
+    }).then((result)=>{
+        if(result.length == 0)
+        {
+            return response.status(404).send('no harvesting activity found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/harvesting/:farmer_id',(request,response)=>{
+    var id = request.params.farmer_id;
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    signup.findById(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no farmer found');
+        }
+
+        harvesting.find({
+            farmer: id
+        }).populate({
+            path: 'season sub_field', 
+            select: 'name start_date end_date crop finished name area'
+        }).then((result)=>{
+            if(result.length==0)
+            {
+                return response.status(404).send('no harvesting activity found');
+            }
+            response.send(result);
+        },(e)=>{
+            response.status(400).send(e);
+        });
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/singleHarvesting/:id',(request,response)=>{
+    var id = request.params.id;
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    harvesting.findById(id).populate({
+        path: 'season sub_field', 
+        select: 'name start_date end_date crop finished name area'
+    }).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no harvesting activity found');
+        }
+
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.delete('/new/harvesting/:id',(request,response)=>{
+    var id = request.params.id;
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    harvesting.findByIdAndRemove(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no harvesting activity found');
+        }
+
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.patch('/new/harvesting/:id',(request,response)=>{
+    var id = request.params.id;
+    var body = _.pick(request.body,['start_date','status','end_date','harvested_quantity','unit','job_done_by','job_duration','duration_unit','total_cost']);
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    if(body.status)
+    {
+        if(body.status == 'finished')
+        {
+            harvesting.findByIdAndUpdate(id,{$set: body},{new: true}).populate({
+                path: 'season sub_field', 
+                select: 'name start_date end_date crop finished name area'
+            }).then((result)=>{
+                if(!result)
+                {
+                    return response.status(404).send('no harvesting activity found');
+                }
+                response.send(result);
+
+                season.findByIdAndUpdate(result.season,{finished: true},{new: true}).then((result)=>{
+                    console.log('season finished!!!');
+                },(e)=>{
+                    response.status(400).send(e);
+                });
+            },(e)=>{
+                response.status(400).send(e);
+            });
+        }
+        else
+        {
+            harvesting.findByIdAndUpdate(id,{$set: body},{new: true}).populate({
+                path: 'season sub_field', 
+                select: 'name start_date end_date crop finished name area'
+            }).then((result)=>{
+                if(!result)
+                {
+                    return response.status(404).send('no harvesting activity found');
+                }
+                response.send(result);
+            },(e)=>{
+                response.status(400).send(e);
+            }); 
+        }
+    }
+    else
+    {
+        harvesting.findByIdAndUpdate(id,{$set: body},{new: true}).populate({
+            path: 'season sub_field', 
+            select: 'name start_date end_date crop finished name area'
+        }).then((result)=>{
+            if(!result)
+            {
+                return response.status(404).send('no harvesting activity found');
+            }
+            response.send(result);
+        },(e)=>{
+            response.status(400).send(e);
+        }); 
     }
 
 
