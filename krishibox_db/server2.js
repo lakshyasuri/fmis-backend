@@ -18,6 +18,7 @@ const {fertilization} = require('./models2/fertilization');
 const {weed_protection} = require('./models2/weed_protection');
 const {pest_protection} = require('./models2/pest_protection');
 const {harvesting} = require('./models2/harvesting');
+const {job} = require('./models2/job');
 
 const {ObjectID} = require('mongodb');
 
@@ -1119,6 +1120,8 @@ app.post('/new/season/:Sub_field/:farmer_id',(request,response)=>{
                 end_date: new Date(+request.body.end_date),
                 sub_field: sub_field_id, 
                 crop: request.body.crop, 
+                expected_yield: request.body.expected_yield,
+                actual_yield: request.body.actual_yield,
                 finished: request.body.finished, 
                 farmer: farmer_id
             }); 
@@ -1240,7 +1243,7 @@ app.delete('/new/season/:id',(request,response)=>{
 app.patch('/new/season/:id/:farmer_id',(request,response)=>{
     var id = request.params.id; 
     var farmer_id = request.params.farmer_id;
-    var body = _.pick(request.body,['name','start_date','end_date','crop','finished']); 
+    var body = _.pick(request.body,['name','start_date','end_date','crop','expected_yield','actual_yield','finished']); 
     if(!ObjectID.isValid(id))
     {
         return response.status(400).send('ID not valid');
@@ -1315,6 +1318,7 @@ app.post('/new/sowing/:id/:farmer_id',(request,response)=>{
 
         var sub_field_id = result.sub_field;
         var crop = result.crop;
+        var expected_yield = result.expected_yield;
         inventory.find({
             name: result.crop, 
             type: 'food grain', 
@@ -1340,7 +1344,7 @@ app.post('/new/sowing/:id/:farmer_id',(request,response)=>{
                 crop: crop,
                 amount_sown: request.body.amount_sown, 
                 sown_unit: request.body.sown_unit, 
-                expected_yield: request.body.expected_yield,
+                expected_yield: expected_yield,
                 yield_unit: request.body.yield_unit, 
                 job_done_by: request.body.job_done_by, 
                 job_duration: request.body.job_duration, 
@@ -2608,7 +2612,9 @@ app.patch('/new/harvesting/:id',(request,response)=>{
                 }
                 response.send(result);
 
-                season.findByIdAndUpdate(result.season,{finished: true},{new: true}).then((result)=>{
+                season.findByIdAndUpdate(result.season,{$set:{
+                    finished: true,
+                    actual_yield: result.harvested_quantity}},{new: true}).then((result)=>{
                     console.log('season finished!!!');
                 },(e)=>{
                     response.status(400).send(e);
@@ -2651,6 +2657,276 @@ app.patch('/new/harvesting/:id',(request,response)=>{
 
 
 });
+
+//------------------------------JOB----------------------------------
+
+app.post('/new/job/:activity_id',(request,response)=>{
+    var activity_id = request.params.activity_id;
+
+    if(!ObjectID.isValid(activity_id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    var Job = new job({
+        job_by: request.body.job_by, 
+        name: request.body.name, 
+        start_date: request.body.start_date, 
+        end_date: request.body.end_date, 
+        duration: request.body.duration, 
+        duration_unit: request.body.duration_unit, 
+        total_cost: request.body.total_cost, 
+        activity: activity_id, 
+    });
+
+    sowing.findById(activity_id).then((result)=>{
+        if(!result)
+        {
+            return 
+        }
+
+        Job.farmer = result.farmer;
+        Job.save().then((result)=>{
+            response.send(result);
+
+            sowing.findByIdAndUpdate(activity_id,{job: result._id}).then((result)=>{
+                console.log('Sowing activity updated');
+            },(e)=>{
+                response.status(400).send(e);
+            });
+        },(e)=>{
+            response.status(400).send(e);
+        });        
+    },(e)=>{
+        response.status(400).send(e);
+    });
+
+    harvesting.findById(activity_id).then((result)=>{
+        if(!result)
+        {
+            return 
+        }
+
+        Job.farmer = result.farmer;
+        Job.save().then((result)=>{
+            response.send(result);
+
+            harvesting.findByIdAndUpdate(activity_id,{job: result._id}).then((result)=>{
+                console.log('harvesting activity updated');
+            },(e)=>{
+                response.status(400).send(e);
+            });
+        },(e)=>{
+            response.status(400).send(e);
+        });        
+    },(e)=>{
+        response.status(400).send(e);
+    });
+
+    fertilization.findById(activity_id).then((result)=>{
+        if(!result)
+        {
+            return 
+        }
+
+        Job.farmer = result.farmer;
+        Job.save().then((result)=>{
+            response.send(result);
+
+            fertilization.findByIdAndUpdate(activity_id,{job: result._id}).then((result)=>{
+                console.log('fertilization activity updated');
+            },(e)=>{
+                response.status(400).send(e);
+            });
+        },(e)=>{
+            response.status(400).send(e);
+        });        
+    },(e)=>{
+        response.status(400).send(e);
+    });
+
+    irrigation.findById(activity_id).then((result)=>{
+        if(!result)
+        {
+            return 
+        }
+
+        Job.farmer = result.farmer;
+        Job.save().then((result)=>{
+            response.send(result);
+
+            irrigation.findByIdAndUpdate(activity_id,{job: result._id}).then((result)=>{
+                console.log('irrigation activity updated');
+            },(e)=>{
+                response.status(400).send(e);
+            });
+        },(e)=>{
+            response.status(400).send(e);
+        });        
+    },(e)=>{
+        response.status(400).send(e);
+    });
+
+    weed_protection.findById(activity_id).then((result)=>{
+        if(!result)
+        {
+            return 
+        }
+
+        Job.farmer = result.farmer;
+        Job.save().then((result)=>{
+            response.send(result);
+
+            weed_protection.findByIdAndUpdate(activity_id,{job: result._id}).then((result)=>{
+                console.log('weed_protection activity updated');
+            },(e)=>{
+                response.status(400).send(e);
+            });
+        },(e)=>{
+            response.status(400).send(e);
+        });        
+    },(e)=>{
+        response.status(400).send(e);
+    });
+
+    pest_protection.findById(activity_id).then((result)=>{
+        if(!result)
+        {
+            return 
+        }
+
+        Job.farmer = result.farmer;
+        Job.save().then((result)=>{
+            response.send(result);
+
+            pest_protection.findByIdAndUpdate(activity_id,{job: result._id}).then((result)=>{
+                console.log('pest_protection activity updated');
+            },(e)=>{
+                response.status(400).send(e);
+            });
+        },(e)=>{
+            response.status(400).send(e);
+        });        
+    },(e)=>{
+        response.status(400).send(e);
+    });
+
+});
+
+app.get('/new/job',(request,response)=>{
+    job.find().then((result)=>{
+        if(result.length==0)
+        {
+            return response.status(404).send('no Job found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/job_farmer/:farmer_id',(request,response)=>{
+    var id = request.params.farmer_id;
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    job.find({
+        farmer: id
+    }).then((result)=>{
+        if(result.length==0)
+        {
+            return response.status(404).send('no job found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/job_activity/:activity_id',(request,response)=>{
+    var id = request.params.activity_id; 
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    job.find({
+        activity: id
+    }).then((result)=>{
+        if(result.length==0)
+        {
+            return response.status(404).send('no job found');
+        }
+
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.get('/new/job/:id',(request,response)=>{
+    var id = request.params.id;
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    job.findById(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no job found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.delete('/new/job/:id',(request,response)=>{
+    var id = request.params.id;
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    job.findByIdAndRemove(id).then((result)=>{
+        if(!result)
+        {
+            return response.status(404).send('no job found');
+        }
+        response.send(result);
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+app.patch('/new/job/:id',(request,response)=>{
+    var id = request.params.id;
+    var body = _.pick(request.body,['job_by','name','start_date','end_date','duration','duration_unit','total_cost']);
+
+    if(!ObjectID.isValid(id))
+    {
+        return response.status(400).send('ID not valid');
+    }
+
+    job.findByIdAndUpdate(id,{$set: body},{new: true}).then((request)=>{
+        if(!result)
+        {
+            return response.status(404).send('no job found');
+        }
+        response.send(result);
+
+    },(e)=>{
+        response.status(400).send(e);
+    });
+});
+
+
+
+
+
 
 
 

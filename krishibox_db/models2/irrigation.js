@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const {signup} = require('./signup');
 const {sub_field} = require('./sub_field');
 const {season} = require('./season');
+const {job} = require('./job');
 
 const irrigationSchema = new mongoose.Schema({
     start_date: {
@@ -24,16 +25,10 @@ const irrigationSchema = new mongoose.Schema({
         type: Number, 
         required: true,
     }, 
-    job_done_by: {
-        type: String,
-    }, 
-    job_duration: {
-        type: Number,
+    job: {
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'job'
     },
-     duration_unit: {
-         type: String, 
-         default: "hours"
-     }, 
      total_cost: {
          type: Number, 
          required: true

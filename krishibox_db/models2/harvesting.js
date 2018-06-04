@@ -26,17 +26,11 @@ const harvestingSchema = new mongoose.Schema({
         default: 'Kg', 
         trim: true
     }, 
-    job_done_by: {
-        type: String, 
-        trim: true, 
-    }, 
-    job_duration: {
-        type: String, 
-    }, 
-    duration_unit: {
-        type: String, 
-        default: 'days'
-    }, 
+    job: {
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'job', 
+        default: null
+    },
     total_cost: {
         type: Number, 
         required: true

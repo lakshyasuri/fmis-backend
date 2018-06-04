@@ -24,6 +24,13 @@ const seasonSchema = new mongoose.Schema({
         type: String, 
         required: true
     }, 
+    expected_yield: {
+        type: Number, 
+    },
+    actual_yeild: {
+        type: Number, 
+        default: null
+    },
     finished: {
         type: Boolean, 
         default: false
